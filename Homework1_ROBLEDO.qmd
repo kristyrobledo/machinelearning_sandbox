@@ -1,0 +1,268 @@
+---
+title: "Homework 1: K-means clustering"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    embed-resources: true
+    number-sections: true
+  pdf:
+    geometry: 
+      - top=30mm
+      - left=30mm
+  docx: default
+format-links: false
+editor: visual
+execute:
+  echo: true
+---
+
+
+```{r}
+#| label: setup
+#| include: FALSE
+#| warning: FALSE
+#| message: FALSE
+
+knitr::opts_chunk$set(echo = TRUE, 
+                      message=FALSE, 
+                      warning=FALSE)
+
+library(readxl)
+library(tidyverse)
+
+FL<-read_excel("FLCounties2010.xls")
+
+#glimpse(FL)
+# summary(FL)
+# nomissing data
+
+```
+
+
+```{r, echo=FALSE, eval=FALSE}
+n=15
+FloridaClust = numeric(n)
+
+for (i in 1:n){
+  FloridaClust[i] = kmeans(na.omit(FL[,PredVars]),i)$tot.withinss
+}
+
+plot(1:15, FloridaClust, 
+     col="darkred",
+     lwd=3, 
+     xlab="Number of clusters", 
+     type="b", 
+     ylab="Total within cluster SS", 
+     col.axis="navyblue"
+     )
+```
+
+# Task A
+
+Using the FLCounties2010 data create two possible three cluster solutions based on random seeds of 10 and 99. The variables you will want to consider for clustering include the three most relevant to the studies objectives previously stated. Save these solutions as fl3cluster_10 and fl3cluster_99. You will also want to retain the cluster assignments.
+
+```{r}
+##checks performed and no missing data
+
+##assume its %hispanic, %urban and %suburban
+PredVars<-names(FL)[c(2,6,7)]
+
+set.seed(10)
+fl3cluster_10<-kmeans(FL[,PredVars],
+                      centers = 3)
+
+set.seed(99)
+fl3cluster_99<-kmeans(FL[,PredVars],
+                      centers = 3)
+```
+
+# Task B
+
+Ordering the clusters in each of the two solutions by their within cluster SS, for how many of the 3 clusters in the seed=10 solution is the respective within cluster SS smaller compared to the within cluster SS for the seed=99 solution?
+
+```{r}
+tibble(solution10 = fl3cluster_10$withinss , 
+       solution99 = fl3cluster_99$withinss ) %>%
+  mutate(diff= solution10-solution99)
+```
+
+2 clusters have SMALLER within-cluster sum of squares with the seed=10 solution
+
+
+Solution: 2
+
+
+# Task C
+
+How many of the 67 counties were assigned to a different cluster across the two 3 cluster solutions. Note –the cluster numbers are nominal variables and can differ naturally from one run to the other (i.e. cluster named “1” for the first solution can refer to the cluster named “3” in the second).
+
+First, lets check the visualisation:
+
+```{r}
+tibble(ID = FL$ID, 
+       PCTHispanic = FL$PCTHispanic, 
+       PCTUrban_MSG = FL$PCTUrban_MSG, 
+       PCTSuburban_MSG = FL$PCTSuburban_MSG, 
+       solution10 = factor(fl3cluster_10$cluster) , 
+       solution99 = factor(fl3cluster_99$cluster) ) -> df
+
+library(plotly)
+
+
+plot_ly(df, 
+        x=~PCTHispanic, 
+        y=~PCTUrban_MSG, 
+        z=~PCTSuburban_MSG,
+        type="scatter3d", mode="markers", 
+        color=~solution10)
+
+```
+
+```{r}
+
+plot_ly(df, 
+        x=~PCTHispanic, 
+        y=~PCTUrban_MSG, 
+        z=~PCTSuburban_MSG,
+        type="scatter3d", mode="markers", 
+        color=~solution99)
+```
+
+so, the solutions are quite different. 
+Solution 99 cluster 1 combines solution 10's 1+2 together, while Solution 99's cluster 2+3 are combined into cluster 3 in solution 10. Below shows this in a table. A total of 25 of the 67 are the "same" in both solutions, while 42/67 are different in the two solutions. 
+
+
+Solution: 42/67
+
+```{r}
+df %>%
+  mutate(different_clusters = case_when(
+    solution10!=solution99~1, 
+    TRUE~0
+  )) %>%
+  add_count(different_clusters) %>%
+  DT::datatable()
+```
+
+# Task D
+
+Using the FLCounties2010 data, assign a random seed of 2016 and generate a scree type plot for a series of cluster solutions ranging from 1 to 10 possible clusters. Use set.seed(2016) before you institute a for loop.
+
+```{r, fig.cap = "Scree type plot demonstrating the total within cluster sums of squares over the cluster solutions"}
+n<-10
+FloridaClust<-vector()
+
+set.seed(2016)
+
+for (i in 1:n){
+  FloridaClust[i] = kmeans(na.omit(FL[,PredVars]),
+                           i, 
+                           nstart = 20)$tot.withinss
+}
+
+tibble(x=1:n, 
+       FloridaClust) %>%
+  ggplot(aes(x=x, 
+             y=FloridaClust))+
+  geom_point()+
+  geom_line()+
+  labs(x="Number of clusters", 
+       y="Total within cluster SS")+
+  theme_minimal()
+
+```
+
+# Task E
+
+Using a random seed of 4 and an nstart=20 option, generate a 4 cluster solution for the FLCounties2010 data based on the three main variables of interest for this particular study.
+
+```{r}
+
+set.seed(4)
+
+FL4<- kmeans(na.omit(FL[,PredVars]),
+             centers = 4, 
+             nstart = 20)
+FL4
+```
+
+## E-1
+
+Report the average PCTHispanic in each of your clusters (round answers to the nearest whole number and express your answers as whole numbers (e.g. 10%, 12% etc).
+
+```{r, tab.cap ="Average percentage of hispanic in each cluster" }
+tibble(FL) %>%
+  add_column(cluster = FL4$cluster) ->Edf
+
+library(gtsummary)
+
+Edf %>%
+  mutate(hispanic = PCTHispanic*100) %>%
+  tbl_summary(by=cluster, 
+              include=hispanic, 
+              statistic = list(all_continuous()~"{mean}"), 
+              label = list(hispanic~"Percent hispanic"))
+
+```
+
+## E-2
+
+How would you characterize the fourth cluster in terms of Hispanics, urban and suburban populations?
+
+visualise with a 3D plot:
+
+```{r}
+
+plot_ly(Edf, 
+        x=~PCTHispanic, 
+        y=~PCTUrban_MSG, 
+        z=~PCTSuburban_MSG,
+        type="scatter3d", mode="markers", 
+        color=~cluster)
+```
+
+Summarise:
+
+```{r}
+
+Edf %>%
+  mutate(hispanic = PCTHispanic*100) %>%
+  tbl_summary(by=cluster, 
+              include=c(hispanic,PCTUrban_MSG, PCTSuburban_MSG), 
+              statistic = list(all_continuous()~"{mean}"), 
+              label = list(hispanic~"Percent hispanic", 
+                           PCTUrban_MSG~"Percent urban",
+                           PCTSuburban_MSG~"Percent suburban"))
+```
+
+The fourth cluster has the counties with the highest proportion of suburban dwellers, and the lowest proportion of urban dwellers. However, they have a spread of varying Hispanic proportions. 
+
+
+## E-3
+
+Rounding to a whole number, what is the median percentage in Rural areas for counties that are in the FIRST cluster of your 4 cluster solution?
+
+
+
+```{r}
+
+Edf %>%
+  mutate(hispanic = PCTHispanic*100) %>%
+  tbl_summary(by=cluster, 
+              include=c(hispanic,PCTUrban_MSG, 
+                        PCTSuburban_MSG, PCTRural_MSG), 
+              statistic = list(all_continuous()~"{median}"), 
+              label = list(hispanic~"Percent hispanic", 
+                           PCTUrban_MSG~"Percent urban",
+                           PCTSuburban_MSG~"Percent suburban"))
+```
+
+Solution: The median percentage in Rural areas for counties in the first cluster is 10%. 
+
+## E-4
+
+If you had to prioritize your sampling efforts in an attempt to cover Hispanics in both heavy Urban and heavy Suburban areas, which two clusters would you first target for these efforts?
+
+I would target cluster two (high urban) and cluster four (high suburban). 
