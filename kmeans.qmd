@@ -1,0 +1,88 @@
+---
+title: "K-means clustering"
+format:
+  html:
+    toc: true
+    toc-depth: 2
+    toc-location: left
+    embed-resources: true
+    number-sections: true
+  pdf:
+    geometry: 
+      - top=30mm
+      - left=30mm
+  docx: default
+format-links: false
+editor: visual
+execute:
+  echo: false
+---
+
+## Data
+
+```{r}
+#| label: setup
+#| include: FALSE
+#| warning: FALSE
+#| message: FALSE
+
+knitr::opts_chunk$set(echo = FALSE, 
+                      message=FALSE, 
+                      warning=FALSE)
+
+library(readxl)
+
+Florida<-read_excel("FloridaCountyData.xlsx")
+
+PredVars<-names(Florida)[c(3,4,5)]
+```
+
+# ??optimal number of clusters
+
+```{r}
+n=15
+FloridaClust = numeric(n)
+
+for (i in 1:n){
+  FloridaClust[i] = kmeans(na.omit(Florida[,PredVars]),i)$tot.withinss
+}
+
+plot(1:15, FloridaClust, 
+     col="darkred",
+     lwd=3, 
+     xlab="Number of clusters", 
+     type="b", 
+     ylab="Total within cluster SS", 
+     col.axis="navyblue"
+     )
+```
+
+"Scree" type plot for identifying the optimal number of clusters. Optimal is the within cluster sum of squares - small as possible. Look for the bend. 2/3/4 looks good. Investigate a range of options just in case
+
+If we do 5, we get 4 with good sizes and 5 with one observation in it.
+
+So lets look at these:
+
+## 3 cluster mean
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+set.seed(517)
+Florida3cluster<-kmeans(na.omit(Florida[,PredVars]), centers=3)
+
+table(Florida3cluster$cluster)
+
+t(round(100*Florida3cluster$centers,1))
+```
+
+visualizing the clusters in a 3D plot is useful
+
+```{r}
+set.seed(1)
+Florida4cluster<-kmeans(na.omit(Florida[,PredVars]), centers=4)
+
+table(Florida4cluster$cluster)
+
+t(round(100*Florida4cluster$centers,1))
+```
