@@ -31,6 +31,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 library(readxl)
 library(tidyverse)
+library(flextable)
 
 FL<-read_excel("FLCounties2010.xls")
 
@@ -82,10 +83,14 @@ fl3cluster_99<-kmeans(FL[,PredVars],
 
 Ordering the clusters in each of the two solutions by their within cluster SS, for how many of the 3 clusters in the seed=10 solution is the respective within cluster SS smaller compared to the within cluster SS for the seed=99 solution?
 
-```{r}
+```{r, tab.cap="Within cluster sums of squares for each cluster (row) from each solution (column)"}
 tibble(solution10 = fl3cluster_10$withinss , 
        solution99 = fl3cluster_99$withinss ) %>%
-  mutate(diff= solution10-solution99)
+  mutate(diff= solution10-solution99) %>%
+  flextable() %>%
+  set_header_labels(solution10 = "Solution with seed=10", 
+                    solution99 = "Solution with seed=99", 
+                    diff = "Difference in solutions (10-99)")
 ```
 
 2 clusters have SMALLER within-cluster sum of squares with the seed=10 solution
@@ -131,7 +136,7 @@ plot_ly(df,
 ```
 
 so, the solutions are quite different. 
-Solution 99 cluster 1 combines solution 10's 1+2 together, while Solution 99's cluster 2+3 are combined into cluster 3 in solution 10. Below shows this in a table. A total of 25 of the 67 are the "same" in both solutions, while 42/67 are different in the two solutions. 
+Solution 99 cluster 1 combines solution 10's 1+2 together, while Solution 99's cluster 2+3 are combined into cluster 3 in solution 10. Below, I try to show this in a table. A total of 25 of the 67 are the "same" in both solutions, while 42/67 are different in the two solutions. 
 
 
 Solution: 42/67
@@ -143,7 +148,7 @@ df %>%
     TRUE~0
   )) %>%
   add_count(different_clusters) %>%
-  DT::datatable()
+  flextable()
 ```
 
 # Task D
@@ -157,7 +162,7 @@ FloridaClust<-vector()
 set.seed(2016)
 
 for (i in 1:n){
-  FloridaClust[i] = kmeans(na.omit(FL[,PredVars]),
+  FloridaClust[i] = kmeans(FL[,PredVars],
                            i, 
                            nstart = 20)$tot.withinss
 }
@@ -182,7 +187,7 @@ Using a random seed of 4 and an nstart=20 option, generate a 4 cluster solution 
 
 set.seed(4)
 
-FL4<- kmeans(na.omit(FL[,PredVars]),
+FL4<- kmeans(FL[,PredVars],
              centers = 4, 
              nstart = 20)
 FL4
@@ -220,7 +225,7 @@ plot_ly(Edf,
         y=~PCTUrban_MSG, 
         z=~PCTSuburban_MSG,
         type="scatter3d", mode="markers", 
-        color=~cluster)
+        color=~factor(cluster))
 ```
 
 Summarise:
@@ -243,8 +248,6 @@ The fourth cluster has the counties with the highest proportion of suburban dwel
 ## E-3
 
 Rounding to a whole number, what is the median percentage in Rural areas for counties that are in the FIRST cluster of your 4 cluster solution?
-
-
 
 ```{r}
 
